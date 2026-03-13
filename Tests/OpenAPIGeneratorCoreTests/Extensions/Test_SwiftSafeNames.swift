@@ -11,10 +11,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-import XCTest
+import Testing
 @testable import _OpenAPIGeneratorCore
 
-final class Test_SwiftSafeNames: Test_Core {
+
+@Suite("SwiftSafeNames Tests")
+struct SwiftSageNamesTests {
+    
+    @Test("Safe name generator produces expected defensive and idiomatic names")
     func testAsSwiftSafeName() {
         let cases: [(original: String, defensive: String, idiomaticUpper: String, idiomaticLower: String)] = [
 
@@ -123,31 +127,31 @@ final class Test_SwiftSafeNames: Test_Core {
             // Override
             ("MEGA", "m_e_g_a", "m_e_g_a", "m_e_g_a"),
         ]
-        self.continueAfterFailure = true
+        
         do {
-            let translator = makeTranslator(nameOverrides: ["MEGA": "m_e_g_a"])
+            let translator = TestFixtures.makeTranslator(nameOverrides: ["MEGA": "m_e_g_a"])
             let safeNameGenerator = translator.context.safeNameGenerator
+            
             for (input, sanitizedDefensive, _, _) in cases {
-                XCTAssertEqual(
-                    safeNameGenerator.swiftMemberName(for: input),
-                    sanitizedDefensive,
-                    "Defensive, input: \(input)"
+                #expect(
+                    safeNameGenerator.swiftMemberName(for: input) == sanitizedDefensive,
+                    Testing.Comment(stringLiteral: "Defensive, input: \(input)")
                 )
             }
         }
+        
         do {
-            let translator = makeTranslator(namingStrategy: .idiomatic, nameOverrides: ["MEGA": "m_e_g_a"])
+            let translator = TestFixtures.makeTranslator(namingStrategy: .idiomatic, nameOverrides: ["MEGA": "m_e_g_a"])
             let safeNameGenerator = translator.context.safeNameGenerator
+            
             for (input, _, idiomaticUpper, idiomaticLower) in cases {
-                XCTAssertEqual(
-                    safeNameGenerator.swiftTypeName(for: input),
-                    idiomaticUpper,
-                    "Idiomatic upper, input: \(input)"
+                #expect(
+                    safeNameGenerator.swiftTypeName(for: input) == idiomaticUpper,
+                    Testing.Comment(stringLiteral: "Idiomatic upper, input: \(input)")
                 )
-                XCTAssertEqual(
-                    safeNameGenerator.swiftMemberName(for: input),
-                    idiomaticLower,
-                    "Idiomatic lower, input: \(input)"
+                #expect(
+                    safeNameGenerator.swiftMemberName(for: input) == idiomaticLower,
+                    Testing.Comment(stringLiteral: "Idiomatic lower, input: \(input)")
                 )
             }
         }

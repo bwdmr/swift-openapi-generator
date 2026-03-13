@@ -11,11 +11,47 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-import XCTest
+import Testing
 @testable import _OpenAPIGeneratorCore
 
-final class Test_TextBasedRenderer: XCTestCase {
 
+@Suite("Text Based Renderer Tests")
+struct Test_TextBasedRenderer {
+    
+    func _test<Input>(
+        _ input: Input,
+        renderedBy renderClosure: (TextBasedRenderer) -> ((Input) -> String),
+        rendersAs output: String,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let renderer = TextBasedRenderer.default
+        #expect(
+          renderClosure(renderer)(input) == output,
+          sourceLocation: sourceLocation
+        )
+    }
+
+    func _test<Input>(
+        _ input: Input,
+        renderedBy renderClosure: (TextBasedRenderer) -> ((Input) -> Void),
+        rendersAs output: String,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) throws {
+        try _test(
+            input,
+            renderedBy: { renderer in
+                let closure = renderClosure(renderer)
+                return { input in
+                    closure(input)
+                    return renderer.renderedContents()
+                }
+            },
+            rendersAs: output
+        )
+    }
+
+    @Test("Comment rendering works correctly")
     func testComment() throws {
         try _test(
             .inline(
@@ -75,6 +111,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Imports are rendered correctly")
     func testImports() throws {
         try _test(nil, renderedBy: TextBasedRenderer.renderImports, rendersAs: "")
         try _test(
@@ -116,6 +153,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Access modifiers render correctly")
     func testAccessModifiers() throws {
         try _test(
             .public,
@@ -147,6 +185,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Literals render correctly")
     func testLiterals() throws {
         try _test(
             .string("hi"),
@@ -196,7 +235,8 @@ final class Test_TextBasedRenderer: XCTestCase {
                 """#
         )
     }
-
+    
+    @Test("Expression rendering produces expected output")
     func testExpression() throws {
         try _test(
             .literal(.nil),
@@ -233,6 +273,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Declarations render correctly")
     func testDeclaration() throws {
         try _test(
             .variable(kind: .let, left: "foo"),
@@ -286,6 +327,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Function kind is rendered correctly")
     func testFunctionKind() throws {
         try _test(
             .initializer,
@@ -310,6 +352,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Function keyword rendering matches expected output")
     func testFunctionKeyword() throws {
         try _test(
             .throws,
@@ -327,6 +370,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Parameter renders correctly with optional labels and names")
     func testParameter() throws {
         try _test(
             .init(label: "l", name: "n", type: .member("T"), defaultValue: .literal(.nil)),
@@ -365,6 +409,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Rendered function signatures match expected output")
     func testFunction() throws {
         try _test(
             .init(accessModifier: .public, kind: .function(name: "f"), parameters: [], body: []),
@@ -417,6 +462,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Identifiers are rendered correctly")
     func testIdentifiers() throws {
         try _test(
             .pattern("foo"),
@@ -427,6 +473,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Member access renders correctly")
     func testMemberAccess() throws {
         try _test(
             .init(left: .identifierPattern("foo"), right: "bar"),
@@ -444,6 +491,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Function call argument renders correctly")
     func testFunctionCallArgument() throws {
         try _test(
             .init(label: "foo", expression: .identifierPattern("bar")),
@@ -461,6 +509,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Function calls render correctly in various forms")
     func testFunctionCall() throws {
         try _test(
             .functionCall(.init(calledExpression: .identifierPattern("callee"))),
@@ -469,6 +518,7 @@ final class Test_TextBasedRenderer: XCTestCase {
                 callee()
                 """#
         )
+        
         try _test(
             .functionCall(
                 .init(
@@ -481,6 +531,7 @@ final class Test_TextBasedRenderer: XCTestCase {
                 callee(foo: bar)
                 """#
         )
+        
         try _test(
             .functionCall(
                 .init(
@@ -501,6 +552,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Extension renders correctly")
     func testExtension() throws {
         try _test(
             .init(
@@ -517,6 +569,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Deprecation renders correctly")
     func testDeprecation() throws {
         try _test(
             .init(),
@@ -525,6 +578,7 @@ final class Test_TextBasedRenderer: XCTestCase {
                 @available(*, deprecated)
                 """#
         )
+        
         try _test(
             .init(message: "some message"),
             renderedBy: TextBasedRenderer.renderDeprecation,
@@ -532,6 +586,7 @@ final class Test_TextBasedRenderer: XCTestCase {
                 @available(*, deprecated, message: "some message")
                 """#
         )
+        
         try _test(
             .init(renamed: "newSymbol(param:)"),
             renderedBy: TextBasedRenderer.renderDeprecation,
@@ -539,6 +594,7 @@ final class Test_TextBasedRenderer: XCTestCase {
                 @available(*, deprecated, renamed: "newSymbol(param:)")
                 """#
         )
+        
         try _test(
             .init(message: "some message", renamed: "newSymbol(param:)"),
             renderedBy: TextBasedRenderer.renderDeprecation,
@@ -548,6 +604,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Binding kind renders correctly")
     func testBindingKind() throws {
         try _test(
             .var,
@@ -565,6 +622,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Variable rendering handles various configurations")
     func testVariable() throws {
         try _test(
             .init(
@@ -627,6 +685,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Struct renders correctly")
     func testStruct() throws {
         try _test(
             .init(name: "Structy"),
@@ -637,6 +696,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Protocol is rendered correctly")
     func testProtocol() throws {
         try _test(
             .init(name: "Protocoly"),
@@ -647,6 +707,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Enum renders as expected")
     func testEnum() throws {
         try _test(
             .init(name: "Enumy"),
@@ -657,6 +718,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Code block items render expected output")
     func testCodeBlockItem() throws {
         try _test(
             .declaration(.variable(kind: .let, left: "foo")),
@@ -674,6 +736,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Code blocks render expected output")
     func testCodeBlock() throws {
         try _test(
             .init(comment: .inline("- MARK: Section"), item: .declaration(.variable(kind: .let, left: "foo"))),
@@ -692,6 +755,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("Typealias renders correctly")
     func testTypealias() throws {
         try _test(
             .init(name: "inty", existingType: .member("Int")),
@@ -709,6 +773,7 @@ final class Test_TextBasedRenderer: XCTestCase {
         )
     }
 
+    @Test("File renders comment, import, and struct declaration")
     func testFile() throws {
         try _test(
             .init(
@@ -725,60 +790,26 @@ final class Test_TextBasedRenderer: XCTestCase {
                 """#
         )
     }
-}
-
-extension Test_TextBasedRenderer {
-    func testRequiresFrozenAnnotation() {
+    
+    @Test("Frozen annotation is required only for frozen enums with public or package access", arguments: [
+        (isFrozen: true, accessModifier: AccessModifier.public, expected: true),
+        (isFrozen: true, accessModifier: .package, expected: true),
+        (isFrozen: true, accessModifier: .internal, expected: false),
+        (isFrozen: true, accessModifier: .fileprivate, expected: false),
+        (isFrozen: true, accessModifier: .private, expected: false),
+        (isFrozen: false, accessModifier: .public, expected: false),
+        (isFrozen: false, accessModifier: .package, expected: false),
+        (isFrozen: false, accessModifier: .internal, expected: false),
+        (isFrozen: false, accessModifier: .fileprivate, expected: false),
+        (isFrozen: false, accessModifier: .private, expected: false),
+    ])
+    func requiresFrozenAnnotation(
+        isFrozen: Bool,
+        accessModifier: AccessModifier,
+        expected: Bool
+    ) {
         let renderer = TextBasedRenderer.default
-        let testCases: [(EnumDescription, Bool)] = [
-            (EnumDescription(isFrozen: true, accessModifier: .`public`, name: ""), true),
-            (EnumDescription(isFrozen: true, accessModifier: .`package`, name: ""), true),
-            (EnumDescription(isFrozen: true, accessModifier: .`internal`, name: ""), false),
-            (EnumDescription(isFrozen: true, accessModifier: .`fileprivate`, name: ""), false),
-            (EnumDescription(isFrozen: true, accessModifier: .`private`, name: ""), false),
-            (EnumDescription(isFrozen: false, accessModifier: .`public`, name: ""), false),
-            (EnumDescription(isFrozen: false, accessModifier: .`package`, name: ""), false),
-            (EnumDescription(isFrozen: false, accessModifier: .`internal`, name: ""), false),
-            (EnumDescription(isFrozen: false, accessModifier: .`fileprivate`, name: ""), false),
-            (EnumDescription(isFrozen: false, accessModifier: .`private`, name: ""), false),
-        ]
-
-        for (enumDesc, expectedResult) in testCases {
-            XCTAssertEqual(renderer.requiresFrozenAnnotation(enumDesc), expectedResult)
-        }
-    }
-}
-
-extension Test_TextBasedRenderer {
-
-    func _test<Input>(
-        _ input: Input,
-        renderedBy renderClosure: (TextBasedRenderer) -> ((Input) -> String),
-        rendersAs output: String,
-        file: StaticString = #file,
-        line: UInt = #line
-    ) throws {
-        let renderer = TextBasedRenderer.default
-        XCTAssertEqual(renderClosure(renderer)(input), output, file: file, line: line)
-    }
-
-    func _test<Input>(
-        _ input: Input,
-        renderedBy renderClosure: (TextBasedRenderer) -> ((Input) -> Void),
-        rendersAs output: String,
-        file: StaticString = #file,
-        line: UInt = #line
-    ) throws {
-        try _test(
-            input,
-            renderedBy: { renderer in
-                let closure = renderClosure(renderer)
-                return { input in
-                    closure(input)
-                    return renderer.renderedContents()
-                }
-            },
-            rendersAs: output
-        )
+        let enumDesc = EnumDescription(isFrozen: isFrozen, accessModifier: accessModifier, name: "")
+        #expect(renderer.requiresFrozenAnnotation(enumDesc) == expected)
     }
 }
